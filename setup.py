@@ -10,7 +10,10 @@ PACKAGES = find_packages()
 
 REQUIRED = [
     "pymongo==3.11.3",
-    "aiohttp==3.7.4.post0"
+    "mongoengine==0.23.0",
+    "aiohttp==3.7.4.post0",
+    "dnspython==2.1.0",
+    "PyYAML==5.4.1"
 ]
 
 setup(
