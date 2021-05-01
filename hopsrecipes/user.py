@@ -43,7 +43,7 @@ class User:
     def to_dict(self):
         return {
             'name': self.name,
-            'id': self.id,
+            #'id': self.id,
             'email': self.email,
             'type': self.type
         }

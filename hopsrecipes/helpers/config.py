@@ -11,6 +11,10 @@ base_config = {
     "mongodb": {
         "url": "mongodb_srv://...",
         "database": "db-name"
+    },
+    "server": {
+        "host": "localhost",
+        "port": 9393
     }
 }
 

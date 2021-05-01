@@ -19,16 +19,16 @@ class UserDoc(Document):
 
 class IngredientDoc(EmbeddedDocument):
     amount = StringField()
-    name = StringField(required=True)
+    name = StringField(required=True, min_length=2)
 
 
 class StepDoc(EmbeddedDocument):
-    number = IntField(min_value=0, required=True)
+    #number = IntField(min_value=0, required=True)
     content = MultiLineStringField(required=True)
 
 
 class RecipeDoc(Document):
-    title = StringField(required=True)
+    title = StringField(required=True, min_length=3)
     author = ReferenceField(UserDoc, required=True)
     ingredients = EmbeddedDocumentListField(IngredientDoc)
     gear = ListField(StringField())

@@ -1,8 +1,10 @@
 from os import name
+
+from bson.objectid import ObjectId
 from hopsrecipes.helpers.exceptions import UserError
 from hopsrecipes import user
 from hopsrecipes import recipe
-from hopsrecipes.helpers import database
+from hopsrecipes.helpers import database, documents
 import sys
 
 import logging
@@ -15,13 +17,5 @@ _LOGGER = logging.getLogger(__name__)
 
 database.connect()
 
-try:
-    usr = user.create_user("test", "neo@hopjes.net", "test12345")
-    _LOGGER.info(usr)
-except UserError:
-    usr = user.get_user_by_email("neo@hopjes.net")
-    _LOGGER.info(usr.to_dict())
-
-r = recipe.create_recipe("pannenkoeken", usr)
-r.add_ingredient("500 gr", "meel")
-_LOGGER.info(r.author.to_dict())
+r = documents.RecipeDoc.objects(id=ObjectId('608c7a141be72d838ee7005d'))
+_LOGGER.info(len(r))
