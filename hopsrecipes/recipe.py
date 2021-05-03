@@ -88,11 +88,29 @@ class Recipe:
 
     @property
     def gear(self) -> List[str]:
-        return [g.name for g in self._recipe.gear]
+        return [g for g in self._recipe.gear]
+
+    @gear.setter
+    def gear(self, a: List[str]):
+        self._recipe.gear.clear()
+
+        for g in a:
+            self._recipe.gear.append(g)
+
+        self._recipe.save()
 
     @property
     def steps(self) -> List[Step]:
         return [Step(s.content) for s in self._recipe.steps]
+
+    @steps.setter
+    def steps(self, a: List[Step]):
+        self._recipe.steps.clear()
+
+        for s in a:
+            self._recipe.steps.create(content=s.content)
+
+        self._recipe.save()
 
     def add_ingredient(self, amount: str, name: str) -> documents.IngredientDoc:
         if len(self._recipe.ingredients.filter(name=name)) > 0:
@@ -168,4 +186,4 @@ def get_by_id(id: str) -> Recipe:
     if len(r) == 0:
         raise RecipeError("recipe does not exist")
 
-    return r.first()
+    return Recipe(r.first())

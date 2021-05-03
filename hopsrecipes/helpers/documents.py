@@ -24,7 +24,7 @@ class IngredientDoc(EmbeddedDocument):
 
 class StepDoc(EmbeddedDocument):
     #number = IntField(min_value=0, required=True)
-    content = MultiLineStringField(required=True)
+    content = StringField(required=True)
 
 
 class RecipeDoc(Document):

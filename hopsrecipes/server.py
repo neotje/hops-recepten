@@ -1,4 +1,5 @@
 import json
+from json.decoder import JSONDecodeError
 import random
 import base64
 from typing import List
@@ -101,8 +102,14 @@ def _remove_user_session(s: Session):
 
 
 def _logged_in(s: Session) -> bool:
-    return 'user' in s or s['user'] is not None
+    return 'user' in s or s.get('user') is not None
 
+
+async def _get_json(req: Request) -> dict:
+    try:
+        return await req.json()
+    except JSONDecodeError:
+        return {}
 
 @routes.get("/user")
 async def current_user(req: Request):
@@ -258,6 +265,8 @@ async def add_ingredient(req: Request):
 async def set_ingredients(req: Request):
     session: Session = await get_session(req)
 
+    body = await _get_json(req)
+
     # check if user is logged in
     if not _logged_in(session):
         return json_response(USER_ERRORS.NOT_LOGGED_IN)
@@ -268,8 +277,8 @@ async def set_ingredients(req: Request):
     if not u.type in EDIT_GRP:
         return json_response(USER_ERRORS.PERMISSION_DENIED)
 
-    # check if required field are present
-    if not ('id' in req.headers or 'ingredients' in await req.json()):
+    # check if required fields are present
+    if 'id' not in req.headers or 'ingredients' not in body:
         return json_response(REQUEST_ERRORS.MISSING_FIELDS)
 
     # get recipe by id
@@ -282,22 +291,96 @@ async def set_ingredients(req: Request):
     if not u.type == 'admin' and not r.author.id == u.id:
         return json_response(USER_ERRORS.PERMISSION_DENIED)
 
-    body = await req.json()
-
-    r._recipe.ingredients.clear()
-
-    r.ingredients = [recipe.Ingredient(
-        i["amount"], i["name"]) for i in body["ingredients"]]
+    r.ingredients = [
+        recipe.Ingredient(i["amount"], i["name"]) for i in body["ingredients"]
+    ]
 
     return json_response({
         'recipe': r.to_dict()
     })
 
 
-@routes.get("/recipes/ingredients/remove")
-async def remove_ingredients(req: Request):
-    pass
+@routes.post("/recipes/gear/set")
+async def set_gear(req: Request):
+    session: Session = await get_session(req)
 
+    body = await _get_json(req)
+
+    # check if user is logged in
+    if not _logged_in(session):
+        return json_response(USER_ERRORS.NOT_LOGGED_IN)
+
+    u = _get_user_session(session)
+
+    # check if user has permission
+    if not u.type in EDIT_GRP:
+        return json_response(USER_ERRORS.PERMISSION_DENIED)
+
+    # check if required fields are present
+    if 'id' not in req.headers or 'gear' not in body:
+        return json_response(REQUEST_ERRORS.MISSING_FIELDS)
+
+    # get recipe by id
+    try:
+        r = recipe.get_by_id(req.headers.get('id'))
+    except RecipeError:
+        return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
+
+    # check if writer is the author of the recipe
+    if not u.type == 'admin' and not r.author.id == u.id:
+        return json_response(USER_ERRORS.PERMISSION_DENIED)
+
+    r.gear = body['gear']
+
+    return json_response({
+        'recipe': r.to_dict()
+    })
+
+
+@routes.post("/recipes/steps/set")
+async def set_gear(req: Request):
+    session: Session = await get_session(req)
+
+    body = await _get_json(req)
+
+    # check if user is logged in
+    if not _logged_in(session):
+        return json_response(USER_ERRORS.NOT_LOGGED_IN)
+
+    u = _get_user_session(session)
+
+    # check if user has permission
+    if not u.type in EDIT_GRP:
+        return json_response(USER_ERRORS.PERMISSION_DENIED)
+
+    # check if required fields are present
+    if 'id' not in req.headers or 'steps' not in body:
+        return json_response(REQUEST_ERRORS.MISSING_FIELDS)
+
+    # get recipe by id
+    try:
+        r = recipe.get_by_id(req.headers.get('id'))
+    except RecipeError:
+        return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
+
+    # check if writer is the author of the recipe
+    if not u.type == 'admin' and not r.author.id == u.id:
+        return json_response(USER_ERRORS.PERMISSION_DENIED)
+
+    r.steps = [recipe.Step(s['content']) for s in body['steps']]
+
+    return json_response({
+        'recipe': r.to_dict()
+    })
+
+
+@routes.get("/routes")
+async def get_routes(req: Request):
+    return json_response({
+        "routes": [
+            r.get_info()["path"] for r in req.app.router.routes()._routes
+        ]
+    })
 
 app.add_routes(routes)
 
