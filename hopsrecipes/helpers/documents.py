@@ -1,7 +1,7 @@
 from typing import Literal
 from mongoengine import Document
 from mongoengine.document import EmbeddedDocument
-from mongoengine.fields import EmbeddedDocumentField, EmbeddedDocumentListField, IntField, ListField, MultiLineStringField, ReferenceField, StringField, EmailField
+from mongoengine.fields import EmbeddedDocumentField, EmbeddedDocumentListField, FileField, ImageField, IntField, ListField, MultiLineStringField, ReferenceField, StringField, EmailField
 
 
 class UserDoc(Document):
@@ -30,6 +30,7 @@ class StepDoc(EmbeddedDocument):
 class RecipeDoc(Document):
     title = StringField(required=True, min_length=3)
     author = ReferenceField(UserDoc, required=True)
+    image = FileField()
     ingredients = EmbeddedDocumentListField(IngredientDoc)
     gear = ListField(StringField())
     steps = EmbeddedDocumentListField(StepDoc)

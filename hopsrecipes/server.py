@@ -4,12 +4,14 @@ import random
 import base64
 from typing import List
 from cryptography.fernet import Fernet
+from multidict import MultiDict
 
 from aiohttp import web
 from aiohttp.web_request import Request
-from aiohttp.web_response import json_response
+from aiohttp.web_response import Response, json_response
 from aiohttp_session import Session, get_session, setup
 from aiohttp_session.cookie_storage import EncryptedCookieStorage
+import aiohttp_cors
 
 from hopsrecipes import recipe, user
 from hopsrecipes.helpers.config import get_config
@@ -17,6 +19,9 @@ from hopsrecipes.helpers.exceptions import RecipeError, UserError
 
 import logging
 _LOGGER = logging.getLogger(__name__)
+
+
+EDIT_GRP = ["admin", "writer"]
 
 
 class REQUEST_ERRORS:
@@ -65,19 +70,11 @@ class RECIPE_ERRORS:
     }}
 
 
-app = web.Application()
-fernet_key = Fernet.generate_key()
-secret_key = base64.urlsafe_b64decode(fernet_key)
-setup(app, EncryptedCookieStorage(secret_key))
-
-routes = web.RouteTableDef()
-
 _sessions = {}
-
 
 def _user_has_session(user: user.User) -> bool:
     for key in _sessions:
-        if _sessions[key].user.id == user.id:
+        if _sessions[key].id == user.id:
             return True
     return False
 
@@ -111,9 +108,30 @@ async def _get_json(req: Request) -> dict:
     except JSONDecodeError:
         return {}
 
+
+def _response(data) -> Response:
+    return json_response(data, headers=HEADERS)
+
+
+HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "*",
+    "Access-Control-Request-Headers": "*",
+    "Access-Control-Expose-Headers": "*"
+}
+
+
+"""
+Routes
+"""
+routes = web.RouteTableDef()
+
+
 @routes.get("/user")
 async def current_user(req: Request):
     session: Session = await get_session(req)
+
+    _LOGGER.debug(session)
 
     if not 'user' in session or session.get('user') is None:
         return json_response(USER_ERRORS.NOT_LOGGED_IN)
@@ -132,15 +150,16 @@ async def current_user(req: Request):
 @routes.post("/user/login")
 async def user_login(req: Request):
     session: Session = await get_session(req)
+    body = await _get_json(req)
 
     # check for user session
     if 'user' in session and session.get('user') is not None:
         return json_response(USER_ERRORS.ALREADY_LOGGED_IN)
 
     # check for required fields
-    if 'email' in req.headers and 'password' in req.headers:
-        email = req.headers.get('email').strip().lower()
-        password = req.headers.get('password').strip()
+    if 'email' in body and 'password' in body:
+        email = body.get('email').strip().lower()
+        password = body.get('password').strip()
 
         # check if user exists
         try:
@@ -195,7 +214,7 @@ async def recipes_list(req: Request):
         "recipes": [r.to_dict() for r in arr]
     })
 
-EDIT_GRP = ["admin", "writer"]
+
 
 
 @routes.post("/recipes/new")
@@ -225,6 +244,69 @@ async def create_recipe(req: Request):
     })
 
 
+@routes.post("/recipes/{id}/image")
+async def post_recipe_image(req: Request):
+    session: Session = await get_session(req)
+
+    # check if user is logged in
+    if not _logged_in(session):
+        return json_response(USER_ERRORS.NOT_LOGGED_IN)
+
+    u = _get_user_session(session)
+
+    # check if user has permission
+    if not u.type in EDIT_GRP:
+        return json_response(USER_ERRORS.PERMISSION_DENIED)
+
+    # get recipe by id
+    try:
+        r = recipe.get_by_id(req.match_info['id'])
+    except RecipeError:
+        return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
+
+    # check if writer is the author of the recipe
+    if not u.type == 'admin' and not r.author.id == u.id:
+        return json_response(USER_ERRORS.PERMISSION_DENIED)
+
+    data = await req.post()
+    img = data["image"]
+    ctype = img.content_type
+
+    _LOGGER.info(ctype)
+
+    r._recipe.image.put(img.file, content_type=ctype)
+    r._recipe.save()
+
+    return json_response({"status": "ok"})
+
+
+@routes.get("/recipes/{id}/image")
+async def get_recipe_image(req: Request):
+    # get recipe by id
+    try:
+        r = recipe.get_by_id(req.match_info['id'])
+    except RecipeError:
+        return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
+
+    content = r._recipe.image.read()
+    content_type = r._recipe.image.content_type
+
+    return Response(body=content, headers=MultiDict({'CONTENT-TYPE': content_type}))
+
+
+@routes.get("/recipes/{id}")
+async def get_recipe(req: Request):
+    # get recipe by id
+    try:
+        r = recipe.get_by_id(req.match_info['id'])
+    except RecipeError:
+        return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
+
+    return json_response({
+        "recipe": r.to_dict()
+    })
+
+
 @routes.post("/recipes/ingredients/add")
 async def add_ingredient(req: Request):
     session: Session = await get_session(req)
@@ -240,7 +322,7 @@ async def add_ingredient(req: Request):
         return json_response(USER_ERRORS.PERMISSION_DENIED)
 
     # check if required field are present
-    if not ('id' in req.headers or 'name' in req.headers):
+    if 'id' not in req.headers or 'name' not in req.headers:
         return json_response(REQUEST_ERRORS.MISSING_FIELDS)
 
     # get recipe by id
@@ -378,14 +460,35 @@ async def set_gear(req: Request):
 async def get_routes(req: Request):
     return json_response({
         "routes": [
-            r.get_info()["path"] for r in req.app.router.routes()._routes
+            r.get_info().get["path"] for r in list(req.app.router.routes())
         ]
     })
 
+
+app = web.Application(client_max_size=20*(1024**2))
 app.add_routes(routes)
 
+# sessions
+fernet_key = Fernet.generate_key()
+secret_key = base64.urlsafe_b64decode(fernet_key)
+setup(app, EncryptedCookieStorage(secret_key))
+
+# cors
+cors = aiohttp_cors.setup(app, defaults={
+    "*": aiohttp_cors.ResourceOptions(
+        allow_credentials=True,
+        expose_headers="*",
+        allow_headers="*",
+        allow_methods="*",
+    )
+})
 
 def run_app():
     config = get_config()
+
+    # add cors to all routes
+    for r in list(app.router.routes()):
+        cors.add(r)
+
     web.run_app(app, host=config["server"]["host"],
                 port=config["server"]["port"])
