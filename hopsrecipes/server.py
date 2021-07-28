@@ -196,9 +196,11 @@ async def user_logout(req: Request):
     if 'user' in session and session.get('user') is not None:
         _remove_user_session(session)
 
-    return json_response({
-        "status": "ok"
-    })
+        return json_response({
+            "status": "ok"
+        })
+
+    return json_response(USER_ERRORS.NOT_LOGGED_IN)
 
 
 """
