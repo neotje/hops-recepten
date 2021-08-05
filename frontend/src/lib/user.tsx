@@ -1,5 +1,7 @@
+import React from "react";
+import { useEffect } from "react";
 import { config } from "../config";
-import { User } from "./models";
+import { User, UserAction, UserContext, UserInterface } from "./models";
 
 export function getCurrentUser(): Promise<User | null> {
     return fetch(`${config.apiUrl}/user`, { credentials: "include" })
@@ -50,4 +52,54 @@ export function logoutUser(): Promise<boolean> {
             }
             return false
         })
+}
+
+
+
+export const userReducer = (state: UserInterface, action: UserAction): UserInterface => {
+    switch (action.type) {
+        case "login":
+            return {
+                ...state,
+                loggedIn: true
+            }
+
+        case "logout":
+            return {
+                ...state,
+                loggedIn: false
+            }
+
+        default:
+            return state
+    }
+}
+
+const initialState: UserInterface = {
+    loggedIn: false
+}
+
+export const userContext = React.createContext<UserContext>({
+    state: initialState,
+    dispatch: (v) => { }
+})
+
+export const UserProvider: React.FC = ({ children }) => {
+    const [state, dispatch] = React.useReducer(userReducer, initialState)
+
+    useEffect(() => {
+        isLoggedIn().then((res) => {
+            if (res) {
+                dispatch({ type: "login" })
+            } else {
+                dispatch({ type: "logout" })
+            }
+        })
+    }, [])
+
+    return (
+        <userContext.Provider value={{ state, dispatch }}>
+            {children}
+        </userContext.Provider>
+    )
 }

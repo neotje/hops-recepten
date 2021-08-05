@@ -9,6 +9,19 @@ export interface User {
     type: string
 }
 
+export interface UserAction {
+    type: string
+}
+
+export interface UserInterface {
+    loggedIn: boolean
+}
+
+export interface UserContext {
+    state: UserInterface
+    dispatch: (value: UserAction) => void
+}
+
 export interface Ingredient {
     amount: string
     name: string

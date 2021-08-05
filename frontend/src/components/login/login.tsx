@@ -2,21 +2,17 @@ import React from 'react'
 import FormControl from '@material-ui/core/FormControl';
 import Button from '@material-ui/core/Button';
 
-import { isLoggedIn, loginUser } from '../../lib/user'
+import { isLoggedIn, loginUser, userContext } from '../../lib/user'
 import { FormHelperText, Grid, Input, InputLabel, Typography } from '@material-ui/core';
 import { useHistory } from 'react-router-dom';
 
 export const Login = () => {
-    const [alreadyLoggedIn, setLoggedIn] = React.useState<boolean>(false)
+    const context = React.useContext(userContext)
     const [email, setEmail] = React.useState("")
     const [password, setPassword] = React.useState("")
     const [error, setError] = React.useState<boolean>(false)
 
     let history = useHistory()
-
-    React.useEffect(() => {
-        isLoggedIn().then(r => setLoggedIn(r))
-    }, [])
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -25,6 +21,7 @@ export const Login = () => {
         loginUser(email, password)
             .then(u => {
                 if (u !== null) {
+                    context.dispatch({type: "login"})
                     history.push("/")
                 } else {
                     setError(true)
@@ -32,7 +29,7 @@ export const Login = () => {
             })
     }
 
-    if (alreadyLoggedIn) {
+    if (context.state.loggedIn) {
         return <div>Please logout first</div>
     } else {
         return (

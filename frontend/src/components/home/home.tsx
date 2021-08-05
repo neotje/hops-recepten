@@ -7,9 +7,25 @@ import GridList from '@material-ui/core/GridList';
 import { config } from '../../config';
 import { Recipe } from '../../lib/models';
 import { RecipeCard } from '../recipe-card/RecipeCard';
-import { Typography } from '@material-ui/core';
+import { GridListTile, IconButton, Typography } from '@material-ui/core';
+import { userContext } from '../../lib/user';
+import AddIcon from '@material-ui/icons/Add';
 
-const styles = (theme: Theme) => createStyles({})
+const styles = (theme: Theme) => createStyles({
+    newButton: {
+        borderColor: theme.palette.divider,
+        border: "solid 4px",
+        boxSizing: "border-box",
+    },
+    newButtonIcon: {
+        position: "relative",
+        float: "left",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        padding: "64px"
+    }
+})
 
 
 interface HomeProps extends WithStyles<typeof styles> { }
@@ -19,6 +35,8 @@ type HomeState = {
 }
 
 class Home extends React.Component<HomeProps, HomeState> {
+    static contextType = userContext
+
     constructor(props: HomeProps) {
         super(props)
 
@@ -29,7 +47,7 @@ class Home extends React.Component<HomeProps, HomeState> {
     }
 
     componentDidMount() {
-        fetch(`${config.apiUrl}/recipes/list`, {credentials: "same-origin"})
+        fetch(`${config.apiUrl}/recipes/list`, { credentials: "same-origin" })
             .then(res => res.json())
             .then(
                 (result) => {
@@ -59,10 +77,23 @@ class Home extends React.Component<HomeProps, HomeState> {
             items.push(RecipeCard({ data: r }))
         }
 
+        const newButton = (
+            <GridListTile className={this.props.classes.newButton} key={"new"}>
+                <IconButton className={this.props.classes.newButtonIcon}>
+                    <AddIcon fontSize="large" />
+                </IconButton>
+            </GridListTile>
+        )
+
         return (
             <Container maxWidth="md">
                 <Typography variant="h1" component="h2" gutterBottom>Hops Recepten</Typography>
                 <GridList cellHeight={270} spacing={4} cols={window.innerWidth < 600 ? 1 : 2}>
+                    {
+                        this.context.state.loggedIn
+                            ? newButton
+                            : null
+                    }
                     {items}
                 </GridList>
             </Container>
