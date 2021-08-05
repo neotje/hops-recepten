@@ -2,7 +2,7 @@ import React from 'react'
 import FormControl from '@material-ui/core/FormControl';
 import Button from '@material-ui/core/Button';
 
-import { isLoggedIn, loginUser, userContext } from '../../lib/user'
+import { loginUser, userContext } from '../../lib/user'
 import { FormHelperText, Grid, Input, InputLabel, Typography } from '@material-ui/core';
 import { useHistory } from 'react-router-dom';
 

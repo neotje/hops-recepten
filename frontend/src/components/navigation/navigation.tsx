@@ -1,15 +1,16 @@
 import React from 'react'
 import { logoutUser, userContext } from '../../lib/user'
 import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
-import { Button, Toolbar, Typography } from '@material-ui/core';
+import { Button, Grid } from '@material-ui/core';
 import { useHistory, Link } from 'react-router-dom';
 
 const useStyles = makeStyles((theme: Theme) =>
     createStyles({
-        loginButton: {
-            float: "right",
+        root: {
             position: "static",
-            margin: theme.spacing(2),
+        },
+        loginButton: {
+            margin: theme.spacing(1),
         },
     })
 );
@@ -31,9 +32,22 @@ export const Navigation = () => {
         )
     }
 
+    const onHomeBtn = () => {
+        history.push("/")
+    }
+
     return (
-        context.state.loggedIn
-            ? <Button className={classes.loginButton} color="inherit" onClick={onLogoutBtn}>Uitloggen</Button>
-            : <Button className={classes.loginButton} color="inherit" component={Link} to="/login">Inloggen</Button>
+        <Grid className={classes.root} justify="flex-end" container direction="row">
+            <Grid item>
+                <Button className={classes.loginButton} color="primary" onClick={onHomeBtn}>Home</Button>
+            </Grid>
+            <Grid item>
+                {
+                    context.state.loggedIn
+                        ? <Button className={classes.loginButton} color="inherit" onClick={onLogoutBtn}>Uitloggen</Button>
+                        : <Button className={classes.loginButton} color="inherit" component={Link} to="/login">Inloggen</Button>
+                }
+            </Grid>
+        </Grid>
     )
 }

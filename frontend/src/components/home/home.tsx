@@ -10,6 +10,7 @@ import { RecipeCard } from '../recipe-card/RecipeCard';
 import { GridListTile, IconButton, Typography } from '@material-ui/core';
 import { userContext } from '../../lib/user';
 import AddIcon from '@material-ui/icons/Add';
+import { Link } from 'react-router-dom';
 
 const styles = (theme: Theme) => createStyles({
     newButton: {
@@ -79,7 +80,7 @@ class Home extends React.Component<HomeProps, HomeState> {
 
         const newButton = (
             <GridListTile className={this.props.classes.newButton} key={"new"}>
-                <IconButton className={this.props.classes.newButtonIcon}>
+                <IconButton className={this.props.classes.newButtonIcon} component={Link} to="/recipe/create">
                     <AddIcon fontSize="large" />
                 </IconButton>
             </GridListTile>

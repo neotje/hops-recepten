@@ -1,14 +1,29 @@
-import React, { useEffect, useState } from 'react';
-import { Container, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Checkbox, CircularProgress, Accordion, AccordionSummary, AccordionDetails } from '@material-ui/core';
+import React, { useContext, useEffect, useState } from 'react';
+import { Container, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Checkbox, CircularProgress, Accordion, AccordionSummary, AccordionDetails, Fab, createStyles, makeStyles, Theme } from '@material-ui/core';
 import Typography from '@material-ui/core/Typography';
 
-import { useParams } from "react-router-dom"
+import { useHistory, useParams } from "react-router-dom"
 import { config } from '../../config';
 import { Ingredient, Recipe, ResponseError, Step } from '../../lib/models';
+import { getRecipe } from '../../lib/recipes';
+import { RECIPE_ERRORS } from '../../lib/errors';
+import { Edit } from '@material-ui/icons';
+import { userContext } from '../../lib/user';
 
-interface RecipePageParams {
+export interface RecipePageParams {
     recipeId: string
 }
+
+const useStyles = makeStyles((theme: Theme) =>
+    createStyles({
+        actionbutton: {
+            position: "fixed",
+            bottom: theme.spacing(4),
+            right: theme.spacing(4),
+            zIndex: theme.zIndex.snackbar
+        }
+    })
+);
 
 export const RecipePage = () => {
     const params = useParams<RecipePageParams>()
@@ -16,30 +31,36 @@ export const RecipePage = () => {
     const [error, setError] = useState<ResponseError>();
     const [isLoaded, setIsLoaded] = useState(false)
     const [recipe, setRecipe] = useState<Recipe>()
-    const [checked, setChecked] = React.useState<number[]>([]);
+    const [checked, setChecked] = useState<number[]>([]);
+
+    const context = useContext(userContext)
+
+    let history = useHistory()
+
+    const classes = useStyles();
 
     useEffect(() => {
-        fetch(`${config.apiUrl}/recipes/${params.recipeId}`)
-            .then(res => res.json())
-            .then(
-                (result) => {
-                    setIsLoaded(true)
+        getRecipe(params.recipeId)
+            .catch((reason) => {
+                setIsLoaded(true)
 
-                    if (result.error) {
-                        setError(result.error)
-                    } else {
-                        setRecipe(result.recipe)
-                    }
-                },
-                (error) => {
-                    setIsLoaded(true)
+                console.log(reason);
+
+
+                if (reason === RECIPE_ERRORS.DOES_NOT_EXIST) {
                     setError({
                         code: 0,
-                        msg: error.message
+                        msg: "Oeps! het recept bestaat niet."
                     })
                 }
-            )
-    }, [])
+            })
+            .then((result) => {
+                setIsLoaded(true)
+                if (result) {
+                    setRecipe(result)
+                }
+            })
+    }, [params.recipeId])
 
     const handleToggle = (value: number) => () => {
         const currentIndex = checked.indexOf(value);
@@ -65,6 +86,14 @@ export const RecipePage = () => {
                 paddingTop: 16,
                 paddingBottom: 120
             }}>
+                {
+                    context.state.loggedIn &&
+                    <Fab className={classes.actionbutton} color="primary" aria-label="edit" onClick={() => {
+                        history.push(`/recipe/${recipe?.id}/edit`)
+                    }}>
+                        <Edit />
+                    </Fab>
+                }
                 <Typography variant="h2" gutterBottom>{recipe?.title}</Typography>
                 <Typography variant="subtitle1">{recipe?.author.name}</Typography>
                 <img src={`${config.apiUrl}/recipes/${recipe?.id}/image`} alt="result of recipe" style={{

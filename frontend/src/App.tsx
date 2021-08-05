@@ -8,6 +8,8 @@ import { RecipePage } from './components/recipe/recipe';
 import { Login } from './components/login/login';
 import { UserProvider } from './lib/user';
 import { Navigation } from './components/navigation/navigation';
+import { CreatePage } from './components/create/create';
+import { EditPage } from './components/edit/edit';
 
 
 function App() {
@@ -19,6 +21,12 @@ function App() {
         <Switch>
           <Route path="/login">
             <Login />
+          </Route>
+          <Route path="/recipe/create">
+            <CreatePage></CreatePage>
+          </Route>
+          <Route path="/recipe/:recipeId/edit">
+            <EditPage></EditPage>
           </Route>
           <Route path="/recipe/:recipeId">
             <RecipePage></RecipePage>

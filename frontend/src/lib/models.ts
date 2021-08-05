@@ -9,6 +9,12 @@ export interface User {
     type: string
 }
 
+export const EmptyUser: User = {
+    name: "",
+    email: "",
+    type: ""
+}
+
 export interface UserAction {
     type: string
 }
@@ -38,4 +44,13 @@ export interface Recipe {
     ingredients: Ingredient[]
     gear: string[]
     steps: Step[]
+}
+
+export const EmptyRecipe: Recipe = {
+    id: "",
+    title: "",
+    author: EmptyUser,
+    ingredients: [],
+    gear: [],
+    steps: []
 }

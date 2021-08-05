@@ -222,6 +222,7 @@ async def recipes_list(req: Request):
 @routes.post("/recipes/new")
 async def create_recipe(req: Request):
     session: Session = await get_session(req)
+    body = await _get_json(req)
 
     if not _logged_in(session):
         return json_response(USER_ERRORS.NOT_LOGGED_IN)
@@ -231,10 +232,10 @@ async def create_recipe(req: Request):
     if not u.type in EDIT_GRP:
         return json_response(USER_ERRORS.PERMISSION_DENIED)
 
-    if not 'title' in req.headers:
+    if not 'title' in body:
         return json_response(REQUEST_ERRORS.MISSING_FIELDS)
 
-    title = req.headers.get('title').strip()
+    title = body.get('title').strip()
 
     try:
         r = recipe.create_recipe(title, u)
@@ -262,7 +263,7 @@ async def post_recipe_image(req: Request):
 
     # get recipe by id
     try:
-        r = recipe.get_by_id(req.match_info['id'])
+        r = recipe.get_by_id(req.match_info.get("id"))
     except RecipeError:
         return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
 
@@ -286,21 +287,24 @@ async def post_recipe_image(req: Request):
 async def get_recipe_image(req: Request):
     # get recipe by id
     try:
-        r = recipe.get_by_id(req.match_info['id'])
+        r = recipe.get_by_id(req.match_info.get("id"))
     except RecipeError:
         return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
 
-    content = r._recipe.image.read()
-    content_type = r._recipe.image.content_type
+    try:
+        content = r._recipe.image.read()
+        content_type = r._recipe.image.content_type
 
-    return Response(body=content, headers=MultiDict({'CONTENT-TYPE': content_type}))
+        return Response(body=content, headers=MultiDict({'CONTENT-TYPE': content_type}))
+    except AttributeError:
+        return Response(status=404)
 
 
 @routes.get("/recipes/{id}")
 async def get_recipe(req: Request):
     # get recipe by id
     try:
-        r = recipe.get_by_id(req.match_info['id'])
+        r = recipe.get_by_id(req.match_info.get("id"))
     except RecipeError:
         return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
 
@@ -309,9 +313,11 @@ async def get_recipe(req: Request):
     })
 
 
-@routes.post("/recipes/ingredients/add")
+@routes.post("/recipes/{id}/ingredients/add")
 async def add_ingredient(req: Request):
     session: Session = await get_session(req)
+
+    body = await _get_json(req)
 
     # check if user is logged in
     if not _logged_in(session):
@@ -324,12 +330,12 @@ async def add_ingredient(req: Request):
         return json_response(USER_ERRORS.PERMISSION_DENIED)
 
     # check if required field are present
-    if 'id' not in req.headers or 'name' not in req.headers:
+    if 'name' not in body:
         return json_response(REQUEST_ERRORS.MISSING_FIELDS)
 
     # get recipe by id
     try:
-        r = recipe.get_by_id(req.headers.get('id'))
+        r = recipe.get_by_id(req.match_info.get("id"))
     except RecipeError:
         return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
 
@@ -338,14 +344,14 @@ async def add_ingredient(req: Request):
         return json_response(USER_ERRORS.PERMISSION_DENIED)
 
     # add ingredient
-    i = r.add_ingredient(req.headers.get('amount'), req.headers.get('name'))
+    i = r.add_ingredient(body.get('amount'), body.get('name'))
 
     return json_response({
         "recipe": r.to_dict()
     })
 
 
-@routes.post("/recipes/ingredients/set")
+@routes.post("/recipes/{id}/ingredients/set")
 async def set_ingredients(req: Request):
     session: Session = await get_session(req)
 
@@ -362,12 +368,12 @@ async def set_ingredients(req: Request):
         return json_response(USER_ERRORS.PERMISSION_DENIED)
 
     # check if required fields are present
-    if 'id' not in req.headers or 'ingredients' not in body:
+    if 'ingredients' not in body:
         return json_response(REQUEST_ERRORS.MISSING_FIELDS)
 
     # get recipe by id
     try:
-        r = recipe.get_by_id(req.headers.get('id'))
+        r = recipe.get_by_id(req.match_info.get("id"))
     except RecipeError:
         return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
 
@@ -376,7 +382,7 @@ async def set_ingredients(req: Request):
         return json_response(USER_ERRORS.PERMISSION_DENIED)
 
     r.ingredients = [
-        recipe.Ingredient(i["amount"], i["name"]) for i in body["ingredients"]
+        recipe.Ingredient(i.get("amount"), i.get("name")) for i in body["ingredients"]
     ]
 
     return json_response({
@@ -384,7 +390,7 @@ async def set_ingredients(req: Request):
     })
 
 
-@routes.post("/recipes/gear/set")
+@routes.post("/recipes/{id}/gear/set")
 async def set_gear(req: Request):
     session: Session = await get_session(req)
 
@@ -401,12 +407,12 @@ async def set_gear(req: Request):
         return json_response(USER_ERRORS.PERMISSION_DENIED)
 
     # check if required fields are present
-    if 'id' not in req.headers or 'gear' not in body:
+    if 'gear' not in body:
         return json_response(REQUEST_ERRORS.MISSING_FIELDS)
 
     # get recipe by id
     try:
-        r = recipe.get_by_id(req.headers.get('id'))
+        r = recipe.get_by_id(req.match_info.get("id"))
     except RecipeError:
         return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
 
@@ -421,7 +427,7 @@ async def set_gear(req: Request):
     })
 
 
-@routes.post("/recipes/steps/set")
+@routes.post("/recipes/{id}/steps/set")
 async def set_gear(req: Request):
     session: Session = await get_session(req)
 
@@ -438,12 +444,12 @@ async def set_gear(req: Request):
         return json_response(USER_ERRORS.PERMISSION_DENIED)
 
     # check if required fields are present
-    if 'id' not in req.headers or 'steps' not in body:
+    if 'steps' not in body:
         return json_response(REQUEST_ERRORS.MISSING_FIELDS)
 
     # get recipe by id
     try:
-        r = recipe.get_by_id(req.headers.get('id'))
+        r = recipe.get_by_id(req.match_info.get("id"))
     except RecipeError:
         return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
 
@@ -455,6 +461,72 @@ async def set_gear(req: Request):
 
     return json_response({
         'recipe': r.to_dict()
+    })
+
+@routes.post("/recipes/{id}/title/set")
+async def set_title(req: Request):
+    session: Session = await get_session(req)
+
+    body = await _get_json(req)
+
+    # check if user is logged in
+    if not _logged_in(session):
+        return json_response(USER_ERRORS.NOT_LOGGED_IN)
+
+    u = _get_user_session(session)
+
+    # check if user has permission
+    if not u.type in EDIT_GRP:
+        return json_response(USER_ERRORS.PERMISSION_DENIED)
+
+    # check if required fields are present
+    if 'title' not in body:
+        return json_response(REQUEST_ERRORS.MISSING_FIELDS)
+
+    # get recipe by id
+    try:
+        r = recipe.get_by_id(req.match_info.get("id"))
+    except RecipeError:
+        return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
+
+    # check if writer is the author of the recipe
+    if not u.type == 'admin' and not r.author.id == u.id:
+        return json_response(USER_ERRORS.PERMISSION_DENIED)
+
+    r.title = body.get('title')
+
+    return json_response({
+        'recipe': r.to_dict()
+    })
+
+@routes.post("/recipes/{id}/delete")
+async def delete_recipe(req: Request):
+    session: Session = await get_session(req)
+
+    # check if user is logged in
+    if not _logged_in(session):
+        return json_response(USER_ERRORS.NOT_LOGGED_IN)
+
+    u = _get_user_session(session)
+
+    # check if user has permission
+    if not u.type in EDIT_GRP:
+        return json_response(USER_ERRORS.PERMISSION_DENIED)
+
+    # get recipe by id
+    try:
+        r = recipe.get_by_id(req.match_info.get("id"))
+    except RecipeError:
+        return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
+
+    # check if writer is the author of the recipe
+    if not u.type == 'admin' and not r.author.id == u.id:
+        return json_response(USER_ERRORS.PERMISSION_DENIED)
+
+    r._recipe.delete()
+
+    return json_response({
+        'status': 'ok'
     })
 
 
