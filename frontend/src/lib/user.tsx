@@ -1,7 +1,7 @@
 import React from "react";
 import { useEffect } from "react";
 import { config } from "../config";
-import { User, UserAction, UserContext, UserInterface } from "./models";
+import { EmptyUser, Recipe, User, UserAction, UserContext, UserInterface } from "./models";
 
 export function getCurrentUser(): Promise<User | null> {
     return fetch(`${config.apiUrl}/user`, { credentials: "include" })
@@ -54,16 +54,40 @@ export function logoutUser(): Promise<boolean> {
         })
 }
 
+export function userIsEditor(u: User): boolean {
+    return config.editGroup.indexOf(u.type) !== -1
+}
+
+export function userIsAuthor(u: User, r: Recipe): boolean{
+    if (!userIsEditor(u)) {
+        return false
+    }
+
+    if (u.type == "admin") {
+        return true
+    }
+
+    if (r.author.email == u.email) {
+        return true
+    }
+
+    return false
+}
+
 
 
 export const userReducer = (state: UserInterface, action: UserAction): UserInterface => {
     switch (action.type) {
         case "login":
-            return {
-                ...state,
-                loggedIn: true
+            if (action.data) {
+                return {
+                    ...state,
+                    loggedIn: true,
+                    user: action.data
+                }
             }
-
+            return state
+            
         case "logout":
             return {
                 ...state,
@@ -76,7 +100,8 @@ export const userReducer = (state: UserInterface, action: UserAction): UserInter
 }
 
 const initialState: UserInterface = {
-    loggedIn: false
+    loggedIn: false,
+    user: EmptyUser 
 }
 
 export const userContext = React.createContext<UserContext>({
@@ -88,9 +113,9 @@ export const UserProvider: React.FC = ({ children }) => {
     const [state, dispatch] = React.useReducer(userReducer, initialState)
 
     useEffect(() => {
-        isLoggedIn().then((res) => {
-            if (res) {
-                dispatch({ type: "login" })
+        getCurrentUser().then((user) => {
+            if (user !== null) {
+                dispatch({ type: "login", data: user })
             } else {
                 dispatch({ type: "logout" })
             }

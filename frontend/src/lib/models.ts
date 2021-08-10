@@ -17,10 +17,12 @@ export const EmptyUser: User = {
 
 export interface UserAction {
     type: string
+    data?: User | undefined
 }
 
 export interface UserInterface {
     loggedIn: boolean
+    user: User
 }
 
 export interface UserContext {
@@ -47,8 +49,8 @@ export interface Recipe {
 }
 
 export const EmptyRecipe: Recipe = {
-    id: "",
-    title: "",
+    id: '',
+    title: '',
     author: EmptyUser,
     ingredients: [],
     gear: [],

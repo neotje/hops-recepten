@@ -21,7 +21,7 @@ export const Login = () => {
         loginUser(email, password)
             .then(u => {
                 if (u !== null) {
-                    context.dispatch({type: "login"})
+                    context.dispatch({type: "login", data: u})
                     history.push("/")
                 } else {
                     setError(true)

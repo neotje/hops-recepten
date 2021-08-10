@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { Container, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Checkbox, CircularProgress, Accordion, AccordionSummary, AccordionDetails, Fab, createStyles, makeStyles, Theme } from '@material-ui/core';
+import { Container, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, Checkbox, CircularProgress, Accordion, AccordionSummary, AccordionDetails, Fab, createStyles, makeStyles, Theme, Grid } from '@material-ui/core';
 import Typography from '@material-ui/core/Typography';
 
 import { useHistory, useParams } from "react-router-dom"
@@ -8,7 +8,8 @@ import { Ingredient, Recipe, ResponseError, Step } from '../../lib/models';
 import { getRecipe } from '../../lib/recipes';
 import { RECIPE_ERRORS } from '../../lib/errors';
 import { Edit } from '@material-ui/icons';
-import { userContext } from '../../lib/user';
+import { userContext, userIsAuthor } from '../../lib/user';
+import { LoadingScreen } from '../loading/loading';
 
 export interface RecipePageParams {
     recipeId: string
@@ -21,6 +22,9 @@ const useStyles = makeStyles((theme: Theme) =>
             bottom: theme.spacing(4),
             right: theme.spacing(4),
             zIndex: theme.zIndex.snackbar
+        },
+        ingredientAmount: {
+            color: theme.palette.grey[800]
         }
     })
 );
@@ -78,7 +82,7 @@ export const RecipePage = () => {
     if (error) {
         return <div>Error: {error.msg}</div>
     } else if (!isLoaded) {
-        return <CircularProgress />
+        return <LoadingScreen />
     } else {
 
         return (
@@ -87,7 +91,7 @@ export const RecipePage = () => {
                 paddingBottom: 120
             }}>
                 {
-                    context.state.loggedIn &&
+                    (recipe && context.state.loggedIn && userIsAuthor(context.state.user, recipe)) &&
                     <Fab className={classes.actionbutton} color="primary" aria-label="edit" onClick={() => {
                         history.push(`/recipe/${recipe?.id}/edit`)
                     }}>
@@ -102,35 +106,39 @@ export const RecipePage = () => {
                     marginBottom: 16
                 }} />
 
-                <List
-                    subheader={
+                <Grid container style={{
+                    width: "fit-content"
+                }}>
+                    <Grid item>
                         <Typography variant="h5" gutterBottom>Ingedienten:</Typography>
-                    }
-                    style={{
-                        minWidth: 320
-                    }}
-                >
+                    </Grid>
                     {
                         recipe?.ingredients.map((value: Ingredient, index: number) => {
                             return (
-                                <ListItem key={value.name} dense>
-                                    <ListItemIcon>
-                                        {value.amount}
-                                    </ListItemIcon>
-                                    <ListItemText>{value.name}</ListItemText>
-                                    <ListItemSecondaryAction>
+                                <Grid key={value.name} container alignItems="baseline">
+                                    <Grid xs={1} item>
                                         <Checkbox
                                             edge="start"
                                             onChange={handleToggle(index)}
                                             checked={checked.indexOf(index) !== -1}
                                             tabIndex={-1}
                                         />
-                                    </ListItemSecondaryAction>
-                                </ListItem>
+                                    </Grid>
+                                    <Grid xs={3} item>
+                                        <Typography className={classes.ingredientAmount} variant="body1">
+                                            {value.amount}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid xs={8} item>
+                                        <Typography variant="body1">
+                                            {value.name}
+                                        </Typography>
+                                    </Grid>
+                                </Grid>
                             )
                         })
                     }
-                </List>
+                </Grid>
 
                 {
                     recipe?.steps.map((step: Step, index: number) => {
@@ -140,10 +148,9 @@ export const RecipePage = () => {
                                     <Typography>Stap {index + 1}</Typography>
                                 </AccordionSummary>
                                 <AccordionDetails>
-                                    <Typography>
-                                        <div dangerouslySetInnerHTML={{
-                                            __html: step.content
-                                        }}></div>
+                                    <Typography dangerouslySetInnerHTML={{
+                                        __html: step.content
+                                    }}>
                                     </Typography>
                                 </AccordionDetails>
                             </Accordion>

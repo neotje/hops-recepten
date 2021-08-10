@@ -19,7 +19,7 @@ class UserDoc(Document):
 
 class IngredientDoc(EmbeddedDocument):
     amount = StringField()
-    name = StringField(required=True, min_length=2)
+    name = StringField(required=True)
 
 
 class StepDoc(EmbeddedDocument):

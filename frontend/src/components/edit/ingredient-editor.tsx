@@ -41,12 +41,12 @@ export const IngredientsEditor = ({ ingredients, onUpdate }: IngredientsProps) =
             if (i === index) {
                 if (key === "amount") {
                     const updated: Ingredient = { ...item }
-                    updated.amount = val.trim()
+                    updated.amount = val
                     return updated
                 }
                 if (key === "name") {
                     const updated: Ingredient = { ...item }
-                    updated.name = val.trim()
+                    updated.name = val
                     return updated
                 }
             }

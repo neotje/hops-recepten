@@ -1,10 +1,11 @@
-import { CircularProgress, Container, createStyles, Fab, makeStyles, TextField, Theme, Typography } from '@material-ui/core';
-import { ArrowBack } from '@material-ui/icons';
+import { Button, CircularProgress, Container, createStyles, Fab, Grid, IconButton, makeStyles, TextField, Theme, Typography } from '@material-ui/core';
+import { ArrowBack, PhotoCamera } from '@material-ui/icons';
 import React, { useContext, useEffect, useState } from 'react';
 import { useHistory, useParams } from 'react-router-dom';
+import { config } from '../../config';
 import { RECIPE_ERRORS, USER_ERRORS } from '../../lib/errors';
-import { Ingredient, Recipe, ResponseError, Step } from '../../lib/models';
-import { getRecipe, saveRecipe } from '../../lib/recipes';
+import { EmptyRecipe, Ingredient, Recipe, ResponseError, Step } from '../../lib/models';
+import { getRecipe, saveRecipe, setRecipeImage } from '../../lib/recipes';
 import { userContext } from '../../lib/user';
 import { RecipePageParams } from '../recipe/recipe';
 import { IngredientsEditor } from './ingredient-editor';
@@ -12,11 +13,26 @@ import { StepsEditor } from './step-editor';
 
 const useStyles = makeStyles((theme: Theme) =>
     createStyles({
-        actionbutton: {
+        actionContainer: {
             position: "fixed",
             bottom: theme.spacing(4),
             right: theme.spacing(4),
             zIndex: theme.zIndex.snackbar
+        },
+        actionButton: {
+            position: "relative"
+        },
+        actionButtonProgress: {
+            position: "absolute",
+            left: 0
+        },
+        uploadBtnRoot: {
+            '& > *': {
+                margin: theme.spacing(2),
+            },
+        },
+        imageGrid: {
+            marginTop: theme.spacing(2)
         }
     })
 );
@@ -26,6 +42,8 @@ export const EditPage = () => {
     const [isLoaded, setIsLoaded] = useState(false)
     const [error, setError] = useState<ResponseError>()
     const [saving, setSaving] = useState(false)
+    const [imgURL, setImgURL] = useState(`${config.apiUrl}/recipes/${recipe?.id}/image`)
+    const [timer, setTimer] = useState<NodeJS.Timeout>()
 
     const params = useParams<RecipePageParams>()
     const context = useContext(userContext)
@@ -58,7 +76,11 @@ export const EditPage = () => {
             .then((result) => {
                 setIsLoaded(true)
                 if (result) {
-                    setRecipe(result)
+                    const r: Recipe = {
+                        ...result
+                    }
+                    setRecipe(r)
+                    setImgURL(`${config.apiUrl}/recipes/${r.id}/image`)
                 }
             })
     }, [params.recipeId])
@@ -66,14 +88,21 @@ export const EditPage = () => {
     const save = (r: Recipe) => {
         setSaving(true)
 
-        saveRecipe(r)
-            .catch((reason) => {
-                // TODO: error message
-            })
-            .then((v) => {
-                setSaving(false)
-                // TODO: saved message
-            })
+        if (timer) {
+            clearTimeout(timer)
+            setTimer(undefined)
+        }
+
+        setTimer(setTimeout(() => {
+            saveRecipe(r)
+                .catch((reason) => {
+                    // TODO: error message
+                })
+                .then((v) => {
+                    setSaving(false)
+                    // TODO: saved message
+                })
+        }, 3000))
     }
 
     function updateIngredients(arr: Ingredient[]) {
@@ -114,6 +143,19 @@ export const EditPage = () => {
         }
     }
 
+    function upload(files: FileList | null) {
+        if (files && recipe) {
+            setSaving(true)
+            setImgURL("")
+
+            setRecipeImage(recipe.id, files[0]).then(result => {
+                console.log(result)
+                setSaving(false)
+                setImgURL(`${config.apiUrl}/recipes/${recipe?.id}/image`)
+            })
+        }
+    }
+
     if (!context.state.loggedIn) {
         return <div>Eerst inloggen!</div>
     }
@@ -130,23 +172,52 @@ export const EditPage = () => {
                 paddingTop: 48,
                 paddingBottom: 120
             }}>
-                <Fab
-                    className={classes.actionbutton}
-                    color="primary" aria-label="back"
-                    disabled={saving}
-                    onClick={() => {
-                        history.push(`/recipe/${recipe?.id}`)
-                    }}>
-                    <ArrowBack />
-                </Fab>
+                <div className={classes.actionContainer}>
+                    <Fab
+                        className={classes.actionButton}
+                        color="primary" aria-label="back"
+                        disabled={saving}
+                        onClick={() => {
+                            history.push(`/recipe/${recipe?.id}`)
+                        }}>
+                        <ArrowBack />
+                    </Fab>
+                    {
+                        saving && <CircularProgress className={classes.actionButtonProgress} size={56}/>
+                    }
+                </div>
+
                 <Typography variant="h3" gutterBottom>Recept "{recipe?.title}" bewerken</Typography>
                 <TextField
                     id="title-input"
                     variant="outlined"
                     value={recipe?.title}
                     onChange={e => updateTitle(e.target.value)} />
-                <IngredientsEditor ingredients={recipe ? recipe.ingredients : []} onUpdate={updateIngredients}></IngredientsEditor>
-                <StepsEditor steps={recipe ? recipe.steps : []} onUpdate={updateSteps}></StepsEditor>
+
+                <Grid container alignItems="center" className={classes.imageGrid}>
+                    <Grid item>
+                        <div className={classes.uploadBtnRoot}>
+                            <input accept="image/*" style={{ display: "none" }} id="icon-button-file" type="file" onChange={e => upload(e.target.files)} />
+                            <label htmlFor="icon-button-file">
+                                <IconButton color="primary" aria-label="upload picture" component="span">
+                                    <PhotoCamera />
+                                </IconButton>
+                            </label>
+                        </div>
+                    </Grid>
+                    <Grid item>
+                        <img src={imgURL} style={{
+                            maxHeight: "30vh"
+                        }} />
+                    </Grid>
+                </Grid>
+
+                {
+                    recipe && <IngredientsEditor ingredients={recipe.ingredients} onUpdate={updateIngredients}></IngredientsEditor>
+                }
+                {
+                    recipe && <StepsEditor steps={recipe.steps} onUpdate={updateSteps}></StepsEditor>
+                }
             </Container>
         )
     }

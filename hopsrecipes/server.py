@@ -3,12 +3,13 @@ from json.decoder import JSONDecodeError
 import random
 import base64
 from typing import List
+import aiohttp
 from cryptography.fernet import Fernet
 from multidict import MultiDict
 
 from aiohttp import web
 from aiohttp.web_request import Request
-from aiohttp.web_response import Response, json_response
+from aiohttp.web_response import Response, StreamResponse, json_response
 from aiohttp_session import Session, get_session, setup
 from aiohttp_session.cookie_storage import EncryptedCookieStorage
 import aiohttp_cors
@@ -71,6 +72,7 @@ class RECIPE_ERRORS:
 
 
 _sessions = {}
+
 
 def _user_has_session(user: user.User) -> bool:
     for key in _sessions:
@@ -217,8 +219,6 @@ async def recipes_list(req: Request):
     })
 
 
-
-
 @routes.post("/recipes/new")
 async def create_recipe(req: Request):
     session: Session = await get_session(req)
@@ -271,16 +271,41 @@ async def post_recipe_image(req: Request):
     if not u.type == 'admin' and not r.author.id == u.id:
         return json_response(USER_ERRORS.PERMISSION_DENIED)
 
-    data = await req.post()
+    """ data = await req.post()
     img = data["image"]
     ctype = img.content_type
 
     _LOGGER.info(ctype)
 
-    r._recipe.image.put(img.file, content_type=ctype)
+    r._recipe.image.put(img.file, content_type=ctype) """
+
+    reader = await req.multipart()
+
+    # get image field
+    field = await reader.next()
+    assert field.name == "image"
+    ctype = field.headers[aiohttp.hdrs.CONTENT_TYPE]
+
+    _LOGGER.info(ctype)
+
+    # delete saved image and create a new file
+    r._recipe.image.delete()
+    r._recipe.image.new_file(content_type=ctype)
+
+    # upload file in chunks
+    size = 0
+    while True:
+        chunk = await field.read_chunk()
+        if not chunk:
+            break
+        size += len(chunk)
+        r._recipe.image.write(chunk)
+
+    # close new file and save recipe doc
+    r._recipe.image.close()
     r._recipe.save()
 
-    return json_response({"status": "ok"})
+    return json_response({"status": "ok", "size": size})
 
 
 @routes.get("/recipes/{id}/image")
@@ -292,10 +317,30 @@ async def get_recipe_image(req: Request):
         return json_response(RECIPE_ERRORS.DOES_NOT_EXIST)
 
     try:
-        content = r._recipe.image.read()
+        resp = StreamResponse(status=200, reason='OK', headers={
+                              'Content-Type': r._recipe.image.content_type})
+
+        await resp.prepare(req)
+
+        size=0
+        out = r._recipe.image.get()
+        while True:
+            chunk = out.readchunk()
+            if not chunk:
+                break
+            size += len(chunk)
+            await resp.write(chunk)
+
+        _LOGGER.info(size)
+
+        await resp.write_eof()
+
+        return resp
+
+        """ content = r._recipe.image.read()
         content_type = r._recipe.image.content_type
 
-        return Response(body=content, headers=MultiDict({'CONTENT-TYPE': content_type}))
+        return Response(body=content, headers=MultiDict({'CONTENT-TYPE': content_type})) """
     except AttributeError:
         return Response(status=404)
 
@@ -463,6 +508,7 @@ async def set_gear(req: Request):
         'recipe': r.to_dict()
     })
 
+
 @routes.post("/recipes/{id}/title/set")
 async def set_title(req: Request):
     session: Session = await get_session(req)
@@ -498,6 +544,7 @@ async def set_title(req: Request):
     return json_response({
         'recipe': r.to_dict()
     })
+
 
 @routes.post("/recipes/{id}/delete")
 async def delete_recipe(req: Request):
@@ -556,6 +603,7 @@ cors = aiohttp_cors.setup(app, defaults={
         allow_methods="*",
     )
 })
+
 
 def run_app():
     config = get_config()

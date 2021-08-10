@@ -37,7 +37,7 @@ export const Navigation = () => {
     }
 
     return (
-        <Grid className={classes.root} justify="flex-end" container direction="row">
+        <Grid className={classes.root} justifyContent="flex-end" container direction="row">
             <Grid item>
                 <Button className={classes.loginButton} color="primary" onClick={onHomeBtn}>Home</Button>
             </Grid>

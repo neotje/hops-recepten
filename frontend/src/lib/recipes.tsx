@@ -36,6 +36,25 @@ export function getRecipe(id: string): Promise<Recipe> {
         })
 }
 
+export function setRecipeImage(id: string, file: File) {
+    const data = new FormData()
+    data.append('image', file)
+
+    return fetch(`${config.apiUrl}/recipes/${id}/image`, {
+        method: "POST",
+        body: data,
+        credentials: "include"
+    })
+        .then(res => res.json())
+        .then(result => {
+            if (result.error) {
+                throw result.error.code
+            }
+
+            return result
+        })
+}
+
 export function saveRecipe(recipe: Recipe): Promise<any> {
     return Promise.all([
         fetch(`${config.apiUrl}/recipes/${recipe.id}/steps/set`, {
